@@ -2,7 +2,7 @@
 
 from errors import InvalidUpdate
 from fast_forward import check_fast_forward
-from git import is_null_rev, commit_oneline, commit_subject
+from git import git, is_null_rev, commit_oneline, commit_subject
 from updates import AbstractUpdate
 from updates.branches import branch_summary_of_changes_needed
 
@@ -63,6 +63,8 @@ class BranchUpdate(AbstractUpdate):
         # the update unless we have had a chance to verify that these hooks
         # work well with those branches.
         assert (self.ref_name.startswith('refs/heads/')
+                or self.ref_name.startswith('refs/users/')
+                or self.ref_name.startswith('refs/vendors/')
                 # Namespaces used by Gerrit.
                 or self.ref_name.startswith('refs/meta/')
                 or self.ref_name.startswith('refs/publish/')
@@ -80,6 +82,28 @@ class BranchUpdate(AbstractUpdate):
         # irrelevant.
         if not is_null_rev(self.old_rev):
             check_fast_forward(self.ref_name, self.old_rev, self.new_rev)
+            # GCC-specific: do not allow updates introducing ancestry
+            # based on the old git-svn repository, to ensure people
+            # rebase onto the new history rather than merging branches
+            # based on git-svn history into those based on the new history.
+            rev_list = git.rev_list(
+                self.new_rev, '^%s' % self.old_rev)
+        else:
+            # GCC branches in refs/heads/ should only go in
+            # refs/heads/releases/ and refs/heads/devel/.
+            if (self.ref_name.startswith('refs/heads/')
+                and not self.ref_name.startswith('refs/heads/releases/')
+                and not self.ref_name.startswith('refs/heads/devel/')):
+                raise InvalidUpdate(
+                    'Shared development branches should be named devel/*, '
+                    'and should be documented in https://gcc.gnu.org/git.html .')
+            rev_list = git.rev_list(
+                self.new_rev)
+        if '3cf0d8938a953ef13e57239613d42686f152b4fe' in rev_list:
+            raise InvalidUpdate(
+                'Refs not based on the git-svn history must not be '
+                'updated to be based on it, and new branches may not be '
+                'based on the old history.')
 
     def get_update_email_contents(self):
         """See AbstractUpdate.get_update_email_contents.

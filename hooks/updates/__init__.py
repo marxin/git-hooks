@@ -299,6 +299,22 @@ class AbstractUpdate(object):
             # name in full to label the branch name.
             branch = '(%s)' % self.ref_name
 
+        # GCC monotonically increasing commit ids.
+        rev_id = ''
+        if (self.email_info.project_name.startswith('gcc')
+            and (self.short_ref_name == 'master'
+                 or self.short_ref_name.startswith('releases/gcc-'))):
+            rev_id = git.describe(commit.rev, all=True, abbrev='40',
+                                  match='basepoints/gcc-[0-9]*')
+            if rev_id.startswith('basepoints/gcc-'):
+                rev_id = 'r' + rev_id[len('basepoints/gcc-'):]
+                branch = ' ' + rev_id[:rev_id.find('-g')]
+            elif rev_id.startswith('tags/basepoints/gcc-'):
+                 rev_id = 'r' + rev_id[len('tags/basepoints/gcc-'):]
+                 branch = ' ' + rev_id[:rev_id.find('-g')]
+            else:
+                rev_id = ''
+
         subject = '[%(repo)s%(branch)s] %(subject)s' % {
             'repo': self.email_info.project_name,
             'branch': branch,
@@ -322,6 +338,10 @@ class AbstractUpdate(object):
         # by stripping it from the output.
 
         body = git.log(commit.rev, max_count="1") + '\n'
+
+        if rev_id:
+            body = re.sub(r'^commit ' + commit.rev, 'commit ' + rev_id,
+                          body, 1, re.M)
         if git_config('hooks.commit-url') is not None:
             url_info = {'rev': commit.rev,
                         'ref_name': self.ref_name}

@@ -49,6 +49,10 @@ REF_CHANGE_MAP = {
     ('refs/tags/',    UPDATE, 'commit'): LightweightTagUpdate,
 }
 
+# GCC-specific namespaces.  refs/vendors/<vendor>/ and
+# refs/users/<user>/ contain heads/ and tags/.
+GCC_NAMESPACES = ('refs/users/', 'refs/vendors/')
+
 
 def new_update(ref_name, old_rev, new_rev, all_refs, submitter_email):
     """Return the correct object for the given parameters.
@@ -80,6 +84,22 @@ def new_update(ref_name, old_rev, new_rev, all_refs, submitter_email):
              and ref_name.startswith(map_ref_prefix))):
             new_cls = REF_CHANGE_MAP[key]
             break
+    if new_cls is None:
+        for namespace in GCC_NAMESPACES:
+            if ref_name.startswith(namespace):
+                sub_name = ref_name[len(namespace):]
+                sub_split = sub_name.split('/')
+                if len(sub_split) >= 3:
+                    mod_name = 'refs/' + ('/'.join(sub_split[1:]))
+                    for key in REF_CHANGE_MAP:
+                        (map_ref_prefix, map_change_type, map_object_type) = key
+                        if ((change_type == map_change_type
+                             and object_type == map_object_type
+                             and mod_name.startswith(map_ref_prefix))):
+                            new_cls = REF_CHANGE_MAP[key]
+                            break
+                if new_cls is not None:
+                    break
     if new_cls is None:
         return None
 

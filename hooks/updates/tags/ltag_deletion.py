@@ -32,7 +32,9 @@ class LightweightTagDeletion(AbstractUpdate):
         REMARKS
             This method handles both lightweight and annotated tags.
         """
-        assert self.ref_name.startswith('refs/tags/')
+        assert (self.ref_name.startswith('refs/tags/')
+                or self.ref_name.startswith('refs/users/')
+                or self.ref_name.startswith('refs/vendors/'))
         assert self.new_rev_type == 'delete'
 
     def validate_ref_update(self):
