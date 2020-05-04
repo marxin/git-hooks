@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python2
 """A module to handle the fast-forward policies...
 
 This module can also be called as a script, and returns non-zero if
@@ -48,8 +48,11 @@ def check_fast_forward(ref_name, old_rev, new_rev):
     # such an update is allowed.
     ok_branches = git_config('hooks.allow-non-fast-forward')
 
-    for branch in ["refs/heads/" + branch.strip()
-                   for branch in ok_branches + FORCED_UPDATE_OK_BRANCHES]:
+    ok_refs = ["refs/heads/" + branch.strip()
+               for branch in ok_branches + FORCED_UPDATE_OK_BRANCHES]
+    ok_refs.append('refs/users/')
+    ok_refs.append('refs/vendors/')
+    for branch in ok_refs:
         if re.match(branch, ref_name) is not None:
             # This is one of the branches where a non-fast-forward update
             # is allowed.  Allow the update, but print a warning for

@@ -349,6 +349,27 @@ def check_revision_history(rev):
     reject_unedited_merge_commit(rev, raw_body)
     reject_merge_conflict_section(rev, raw_body)
     check_missing_ticket_number(rev, raw_body)
+    # For GCC, check for subject line that looks like a ChangeLog
+    # header.
+    if len(raw_body) >= 1 and re.match('[0-9]{4}-[0-9]{2}-[0-9]{2} .*<.*@.*>',
+                                       raw_body[0]):
+        raise InvalidUpdate(
+            'The first line of a commit message should be a short '
+            'description of the change, not a ChangeLog header.')
+    # For GCC, reject single-word subject lines.
+    if len(raw_body) >= 1 and re.match(r'\S*$',
+                                       raw_body[0].strip()):
+        raise InvalidUpdate(
+            'The first line of a commit message should be a short '
+            'description of the change, not a single word.')
+    # For GCC, reject new commits with a From-SVN: line.
+    for line in raw_body:
+        if line.startswith('From-SVN: '):
+            raise InvalidUpdate(
+                'From-SVN: lines should only appear in commits converted '
+                'from SVN, not in new git commits.  If this is a cherry-pick '
+                'of a commit done in SVN, remove the From-SVN: line from '
+                'the commit message before pushing.')
 
 
 def check_filename_collisions(rev):
