@@ -347,7 +347,7 @@ def verify_changelog_format(rev, raw_body):
             message += 'ERR: %s\n' % error
         raise InvalidUpdate(message)
 
-def check_revision_history(rev):
+def check_revision_history(rev, project_name, short_ref_name):
     """Apply pre-commit checks to the commit's revision history.
 
     Raise InvalidUpdate if one or more style violation are detected.
@@ -390,7 +390,9 @@ def check_revision_history(rev):
                 'from SVN, not in new git commits.  If this is a cherry-pick '
                 'of a commit done in SVN, remove the From-SVN: line from '
                 'the commit message before pushing.')
-    if len(raw_body) >= 1 and raw_body[0].startswith('TESTING-GIT-CHANGELOG'):
+    if (len(raw_body) >= 1 and project_name == 'gcc-reposurgeon-8'
+        and (short_ref_name == 'master'
+             or short_ref_name.startswith('releases/gcc-'))):
         verify_changelog_format(rev, raw_body)
 
 def check_filename_collisions(rev):
