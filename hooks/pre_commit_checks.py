@@ -3,6 +3,9 @@ from pipes import quote
 import re
 from subprocess import Popen, PIPE, STDOUT
 
+from git_commit import GitCommit
+from datetime import datetime
+
 from config import git_config
 from errors import InvalidUpdate
 from git import git, diff_tree, file_exists
@@ -326,6 +329,23 @@ def check_missing_ticket_number(rev, raw_rh):
         'Subject: %s' % raw_rh[0],
         ])
 
+def verify_changelog_format(rev, raw_body):
+    author = git.show(rev, format='%ae  <%aN>', no_patch=True)
+    committed_date = git.show(rev, format='%ct', no_patch=True)
+    changed_files = git.diff('%s~..%s' % (rev, rev), name_status=True)
+
+    date = datetime.utcfromtimestamp(int(committed_date))
+    git_commit = GitCommit(date, author, raw_body,
+                           GitCommit.parse_git_name_status(changed_files))
+
+    if git_commit.success:
+        # OK
+        pass
+    else:
+        message = 'ChangeLog format failed:\n'
+        for error in git_commit.errors:
+            message += 'ERR: %s\n' % error
+        raise InvalidUpdate(message)
 
 def check_revision_history(rev):
     """Apply pre-commit checks to the commit's revision history.
@@ -370,7 +390,8 @@ def check_revision_history(rev):
                 'from SVN, not in new git commits.  If this is a cherry-pick '
                 'of a commit done in SVN, remove the From-SVN: line from '
                 'the commit message before pushing.')
-
+    if len(raw_body) >= 1 and raw_body[0].startswith('TESTING-GIT-CHANGELOG'):
+        verify_changelog_format(rev, raw_body)
 
 def check_filename_collisions(rev):
     """raise InvalidUpdate if the name of two files only differ in casing.
