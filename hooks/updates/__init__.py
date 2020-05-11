@@ -263,7 +263,7 @@ class AbstractUpdate(object):
         if do_rh_style_checks:
             for commit in added:
                 if not commit.pre_existing_p:
-                    check_revision_history(commit.rev)
+                    check_revision_history(commit.rev, self.email_info.project_name, self.short_ref_name)
 
         reject_merge_commits = (
             self.search_config_option_list('hooks.reject-merge-commits')
