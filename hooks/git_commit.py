@@ -118,6 +118,12 @@ ignored_prefixes = [
     'libsanitizer/',
     ]
 
+misc_files = [
+    'gcc/DATESTAMP',
+    'gcc/BASE-VER',
+    'gcc/DEV-PHASE'
+    ]
+
 author_line_regex = \
         re.compile(r'^(?P<datetime>\d{4}-\d{2}-\d{2})\ {2}(?P<name>.*  <.*>)')
 additional_author_regex = re.compile(r'^\t(?P<spaces>\ *)?(?P<name>.*  <.*>)')
@@ -180,7 +186,7 @@ class ChangeLogEntry:
 
 
 class GitCommit:
-    def __init__(self, date, author, body, modified_files):
+    def __init__(self, date, author, body, modified_files, strict=True):
         self.lines = body
         self.modified_files = modified_files
         self.message = None
@@ -193,16 +199,16 @@ class GitCommit:
         self.co_authors = []
         self.top_level_prs = []
 
-        # skip gcc/DATESTAMP bump
-        if (len(self.modified_files) == 1
-                and self.modified_files[0][0] == 'gcc/DATESTAMP'):
+        project_files = [f for f in self.modified_files
+                         if self.is_changelog_filename(f[0])
+                         or f[0] in misc_files]
+        if len(project_files) == len(self.modified_files):
+            # All modified files are only MISC files
             return
-
-        # skip modifications of only ChangeLog files
-        changed_changelogs = \
-            [x[0] for x in self.modified_files
-                if self.is_changelog_filename(x[0])]
-        if len(self.modified_files) == len(changed_changelogs):
+        elif project_files and strict:
+            self.errors.append(Error('ChangeLog, DATESTAMP, BASE-VER and '
+                                     'DEV-PHASE updates should be done '
+                                     'separately from normal commits'))
             return
 
         self.parse_lines()
@@ -434,9 +440,11 @@ class GitCommit:
             if not self.in_ignored_location(file):
                 if file in self.new_files:
                     changelog_location = self.get_changelog_by_path(file)
+                    # Python2: we cannot use next(filter(...))
                     entries = filter(lambda x: x.folder == changelog_location,
                                      self.changelog_entries)
-                    entry = next(entries, None)
+                    entries = list(entries)
+                    entry = entries[0] if entries else None
                     if not entry:
                         prs = self.top_level_prs
                         if not prs:
