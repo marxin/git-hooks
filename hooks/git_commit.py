@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+#
+# This file is part of GCC.
+#
+# GCC is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 3, or (at your option) any later
+# version.
+#
+# GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GCC; see the file COPYING3.  If not see
+# <http://www.gnu.org/licenses/>.  */
 
 import os
 import re
@@ -153,6 +169,7 @@ class ChangeLogEntry:
         self.folder = folder
         # Python2 has not 'copy' function
         self.author_lines = list(authors)
+        self.initial_prs = list(prs)
         self.prs = list(prs)
         self.lines = []
 
@@ -184,9 +201,15 @@ class ChangeLogEntry:
     def authors(self):
         return [author_line[0] for author_line in self.author_lines]
 
+    @property
+    def is_empty(self):
+        return not self.lines and self.prs == self.initial_prs
+
 
 class GitCommit:
-    def __init__(self, date, author, body, modified_files, strict=True):
+    def __init__(self, hexsha, date, author, body, modified_files,
+                 strict=True):
+        self.hexsha = hexsha
         self.lines = body
         self.modified_files = modified_files
         self.message = None
@@ -364,7 +387,7 @@ class GitCommit:
                         else:
                             last_entry.lines.append(line)
                     else:
-                        if not last_entry.lines and not last_entry.prs:
+                        if last_entry.is_empty:
                             msg = 'first line should start with a tab, ' \
                                   'asterisk and space'
                             self.errors.append(Error(msg, line))
