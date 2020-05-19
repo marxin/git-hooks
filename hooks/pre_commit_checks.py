@@ -347,6 +347,7 @@ def verify_changelog_format(rev, raw_body):
         message = 'ChangeLog format failed:\n'
         for error in git_commit.errors:
             message += 'ERR: %s\n' % error
+        message += '\nPlease see: https://gcc.gnu.org/codingconventions.html#ChangeLogs\n'
         raise InvalidUpdate(message)
 
 def check_revision_history(rev, project_name, short_ref_name):
