@@ -150,6 +150,7 @@ star_prefix_regex = re.compile(r'\t\*(?P<spaces>\ *)(?P<content>.*)')
 LINE_LIMIT = 100
 TAB_WIDTH = 8
 CO_AUTHORED_BY_PREFIX = 'co-authored-by: '
+CHERRY_PICK_PREFIX = '(cherry picked from commit '
 
 
 class Error:
@@ -349,6 +350,8 @@ class GitCommit:
                     author = self.format_git_author(name)
                     self.co_authors.append(author)
                     continue
+                elif line.startswith(CHERRY_PICK_PREFIX):
+                    continue
 
                 # ChangeLog name will be deduced later
                 if not last_entry:
@@ -500,11 +503,11 @@ class GitCommit:
                     err = Error(msg % (entry.folder, changelog_location), file)
                     self.errors.append(err)
 
-    def to_changelog_entries(self):
+    def to_changelog_entries(self, use_commit_ts=False):
         for entry in self.changelog_entries:
             output = ''
             timestamp = entry.datetime
-            if not timestamp:
+            if not timestamp or use_commit_ts:
                 timestamp = self.date.strftime('%Y-%m-%d')
             authors = entry.authors if entry.authors else [self.author]
             # add Co-Authored-By authors to all ChangeLog entries
