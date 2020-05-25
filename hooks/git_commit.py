@@ -127,9 +127,10 @@ bug_components = set([
 
 ignored_prefixes = [
     'gcc/d/dmd/',
-    'gcc/go/frontend/',
+    'gcc/go/gofrontend/',
+    'gcc/testsuite/go.test/test/',
     'libgo/',
-    'libphobos/libdruntime',
+    'libphobos/libdruntime/',
     'libphobos/src/',
     'libsanitizer/',
     ]
@@ -145,12 +146,19 @@ author_line_regex = \
 additional_author_regex = re.compile(r'^\t(?P<spaces>\ *)?(?P<name>.*  <.*>)')
 changelog_regex = re.compile(r'^([a-z0-9+-/]*)/ChangeLog:?')
 pr_regex = re.compile(r'\tPR (?P<component>[a-z+-]+\/)?([0-9]+)$')
+dr_regex = re.compile(r'\tDR ([0-9]+)$')
 star_prefix_regex = re.compile(r'\t\*(?P<spaces>\ *)(?P<content>.*)')
 
 LINE_LIMIT = 100
 TAB_WIDTH = 8
 CO_AUTHORED_BY_PREFIX = 'co-authored-by: '
 CHERRY_PICK_PREFIX = '(cherry picked from commit '
+REVIEWED_BY_PREFIX = 'reviewed-by: '
+REVIEWED_ON_PREFIX = 'reviewed-on: '
+SIGNED_OFF_BY_PREFIX = 'signed-off-by: '
+
+REVIEW_PREFIXES = (REVIEWED_BY_PREFIX, REVIEWED_ON_PREFIX,
+                   SIGNED_OFF_BY_PREFIX)
 
 
 class Error:
@@ -225,7 +233,8 @@ class GitCommit:
 
         project_files = [f for f in self.modified_files
                          if self.is_changelog_filename(f[0])
-                         or f[0] in misc_files]
+                         or f[0] in misc_files
+                         or self.in_ignored_location(f[0])]
         if len(project_files) == len(self.modified_files):
             # All modified files are only MISC files
             return
@@ -291,7 +300,7 @@ class GitCommit:
                 continue
             if (changelog_regex.match(b) or self.find_changelog_location(b)
                     or star_prefix_regex.match(b) or pr_regex.match(b)
-                    or author_line_regex.match(b)):
+                    or dr_regex.match(b) or author_line_regex.match(b)):
                 self.changes = body[i:]
                 return
         self.errors.append(Error('cannot find a ChangeLog location in '
@@ -344,11 +353,16 @@ class GitCommit:
                         continue
                     else:
                         pr_line = line.lstrip()
+                elif dr_regex.match(line):
+                    pr_line = line.lstrip()
 
-                if line.lower().startswith(CO_AUTHORED_BY_PREFIX):
+                lowered_line = line.lower()
+                if lowered_line.startswith(CO_AUTHORED_BY_PREFIX):
                     name = line[len(CO_AUTHORED_BY_PREFIX):]
                     author = self.format_git_author(name)
                     self.co_authors.append(author)
+                    continue
+                elif lowered_line.startswith(REVIEW_PREFIXES):
                     continue
                 elif line.startswith(CHERRY_PICK_PREFIX):
                     continue
@@ -372,7 +386,8 @@ class GitCommit:
                         self.changelog_entries.append(last_entry)
                         will_deduce = True
                 elif author_tuple:
-                    last_entry.author_lines.append(author_tuple)
+                    if author_tuple not in last_entry.author_lines:
+                        last_entry.author_lines.append(author_tuple)
                     continue
 
                 if not line.startswith('\t'):
