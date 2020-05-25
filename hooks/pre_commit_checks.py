@@ -335,10 +335,8 @@ def verify_changelog_format(rev, raw_body):
     changed_files = git.diff('%s~..%s' % (rev, rev), name_status=True)
 
     date = datetime.utcfromtimestamp(int(committed_date))
-    # TODO: enable strict mode
     git_commit = GitCommit(date, rev, author, raw_body,
-                           GitCommit.parse_git_name_status(changed_files),
-                           strict=False)
+                           GitCommit.parse_git_name_status(changed_files))
 
     if git_commit.success:
         # OK
