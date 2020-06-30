@@ -3,7 +3,7 @@ from pipes import quote
 import re
 from subprocess import Popen, PIPE, STDOUT
 
-from git_commit import GitCommit
+from git_commit import GitCommit, GitInfo
 from datetime import datetime
 
 from config import git_config
@@ -335,8 +335,9 @@ def verify_changelog_format(rev, raw_body):
     changed_files = git.diff('%s~..%s' % (rev, rev), name_status=True)
 
     date = datetime.utcfromtimestamp(int(committed_date))
-    git_commit = GitCommit(date, rev, author, raw_body,
-                           GitCommit.parse_git_name_status(changed_files))
+    git_info = GitInfo(rev, date, author, raw_body,
+                       GitCommit.parse_git_name_status(changed_files))
+    git_commit = GitCommit(git_info)
 
     if git_commit.success:
         # OK
